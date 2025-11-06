@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: notifyhub-db
+    restart: always
+    environment:
+      POSTGRES_USER: notifyhubAdmin
+      POSTGRES_PASSWORD: "notify9486"
+      POSTGRES_DB: notifyhub
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
