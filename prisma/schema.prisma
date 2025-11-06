@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,30 +9,183 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Plan {
+// ==========================
+// ENUMS
+// ==========================
+
+enum plan {
   FREE
   PRO
   ULTRA
 }
 
-model Tenant {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String    @db.VarChar(255)
-  plan          Plan      @default(FREE)
-  isSuspended   Boolean   @default(false)
-  createdAt     DateTime  @default(now()) @db.Timestamptz
-  apiKeys       ApiKey[]
-
-  @@map("tenant") // nom exact de la table dans PostgreSQL
+enum channel {
+  EXPO_PUSH
+  EMAIL
 }
 
-model ApiKey {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  key        String    @unique
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now()) @db.Timestamptz
-  tenantId   String    @db.Uuid
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+enum recipient_mode {
+  INLINE
+  BY_USER
+}
 
-  @@map("api_key")
+enum notification_status {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  CANCELED
+}
+
+enum attempt_status {
+  OK
+  ERROR
+}
+
+enum admin_role {
+  PLATFORM_ADMIN
+  PLATFORM_SUPPORT
+  PLATFORM_READONLY
+}
+
+// ==========================
+// TABLES — PUBLIC API
+// ==========================
+
+model tenant {
+  id           String     @id @default(uuid())
+  name         String
+  plan         plan       @default(FREE)
+  is_suspended Boolean    @default(false)
+  created_at   DateTime   @default(now())
+  api_keys     api_key[]
+  users        user[]
+  configs      channel_config[]
+  notifications notification[]
+  webhooks     webhook_endpoint[]
+}
+
+model api_key {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  tenant_id  String
+  tenant     tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+model user {
+  id          String          @id @default(uuid())
+  tenant_id   String
+  external_id String
+  is_active   Boolean         @default(true)
+  created_at  DateTime        @default(now())
+  tenant      tenant          @relation(fields: [tenant_id], references: [id])
+  subscriptions subscription[]
+  notifications notification[]
+
+  @@unique([tenant_id, external_id], name: "uk_user_tenant_external")
+}
+
+model subscription {
+  id          String   @id @default(uuid())
+  user_id     String
+  channel     channel
+  endpoint    String
+  meta        Json?
+  valid_until DateTime?
+  created_at  DateTime @default(now())
+  user        user     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, channel, created_at], name: "ix_sub_user_channel_created")
+}
+
+model channel_config {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  channel         channel
+  config_json     Json
+  allow_overrides Boolean  @default(false)
+  created_at      DateTime @default(now())
+  tenant          tenant   @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, channel], name: "uk_cfg_tenant_channel")
+}
+
+model notification {
+  id                 String              @id @default(uuid())
+  tenant_id          String
+  user_id            String?
+  channel            channel
+  recipient_mode     recipient_mode
+  subject            String?
+  content_json       Json
+  recipient_snapshot Json?
+  status             notification_status @default(QUEUED)
+  send_at            DateTime?
+  error              String?
+  dedupe_key         String?
+  created_at         DateTime @default(now())
+  sent_at            DateTime?
+  delivered_at       DateTime?
+
+  tenant             tenant      @relation(fields: [tenant_id], references: [id])
+  user               user?       @relation(fields: [user_id], references: [id])
+  attempts           delivery_attempt[]
+
+  @@index([tenant_id, created_at], name: "ix_notif_tenant_created")
+  @@index([user_id, channel, created_at], name: "ix_notif_user_channel_created")
+  @@index([send_at, status], name: "ix_notif_sendat_status")
+}
+
+model delivery_attempt {
+  id              String          @id @default(uuid())
+  notification_id String
+  try             Int
+  status          attempt_status
+  error           String?
+  created_at      DateTime @default(now())
+  notification    notification @relation(fields: [notification_id], references: [id])
+
+  @@index([notification_id, try], name: "ix_attempt_notif_try")
+}
+
+model webhook_endpoint {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  url        String
+  secret     String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  tenant     tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+// ==========================
+// TABLES — ADMIN API
+// ==========================
+
+model admin_user {
+  id             String      @id @default(uuid())
+  email          String      @unique
+  password_hash  String
+  role           admin_role  @default(PLATFORM_ADMIN)
+  is_2fa_enabled Boolean     @default(false)
+  created_at     DateTime    @default(now())
+  last_login_at  DateTime?
+  audit_logs     platform_audit_log[]
+}
+
+model platform_audit_log {
+  id            String      @id @default(uuid())
+  admin_user_id String
+  action        String
+  target_type   String
+  target_id     String
+  details       Json?
+  created_at    DateTime @default(now())
+  admin_user    admin_user @relation(fields: [admin_user_id], references: [id])
+
+  @@index([admin_user_id, created_at], name: "ix_audit_admin_created")
+  @@index([target_type, target_id, created_at], name: "ix_audit_target_created")
 }
