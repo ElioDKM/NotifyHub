@@ -38,7 +38,8 @@ $ pnpm install
 $ pnpm run start
 
 # watch mode
-$ pnpm run start:dev
+$ pnpm run start:dev 
+$ npx prisma studio
 
 # production mode
 $ pnpm run start:prod
