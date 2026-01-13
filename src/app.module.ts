@@ -5,6 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './admin/auth/auth.module';
 import { TenantsModule } from './admin/tenants/tenants.module';
+import { UsersModule } from './public/users/users.module';
+import { ChannelConfigsModule } from './public/channels-configs/channel-configs.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { TenantsModule } from './admin/tenants/tenants.module';
     }),
     AuthModule,
     TenantsModule,
+    UsersModule,
+    ChannelConfigsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

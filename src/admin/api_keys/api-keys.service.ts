@@ -67,7 +67,7 @@ export class ApiKeysService {
 
     const action = isActive ? 'activated' : 'deactivated';
 
-    // 🔸 Désactive ou réactive TOUTES les clés
+    // Désactive ou réactive TOUTES les clés
     if (keyIdOrMode === 'all') {
       const result = await this.prisma.api_key.updateMany({
         where: { tenant_id: tenant.id, is_active: !isActive },
@@ -79,7 +79,7 @@ export class ApiKeysService {
       };
     }
 
-    // 🔸 Latest ou oldest
+    // Latest ou oldest
     if (['latest', 'oldest'].includes(keyIdOrMode)) {
       const order = keyIdOrMode === 'latest' ? 'desc' : 'asc';
       const key = await this.prisma.api_key.findFirst({
@@ -100,7 +100,7 @@ export class ApiKeysService {
       return { message: `API key ${action} successfully`, keyId: key.id };
     }
 
-    // 🔸 Cas spécifique : un ID
+    // Cas spécifique : un ID
     const specificKey = await this.prisma.api_key.findUnique({
       where: { id: keyIdOrMode },
     });

@@ -18,9 +18,7 @@ async function main() {
   if (!password) throw new Error('Missing ADMIN_PASSWORD in .env');
 
   const pool = new Pool({ connectionString: url });
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const adapter = new PrismaPg(pool);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const prisma = new PrismaClient({ adapter });
 
   try {
