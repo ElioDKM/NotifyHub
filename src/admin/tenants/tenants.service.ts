@@ -21,7 +21,9 @@ export class TenantsService {
     private readonly apiKeysService: ApiKeysService,
   ) {}
 
-  // Création d’un tenant
+  /**
+   * Crée un tenant
+   */
   async createTenant(dto: CreateTenantDto, adminUserId: string) {
     const { email, plan, issueApiKey } = dto;
 
@@ -51,7 +53,9 @@ export class TenantsService {
     return { tenant, apiKey };
   }
 
-  // Liste les tenants avec filtres et pagination
+  /**
+   * Liste les tenants avec filtres et pagination
+   */
   async listTenants(query: GetTenantsQueryDto) {
     const { plan, q, page = 1, pageSize = 10 } = query;
 
@@ -80,7 +84,9 @@ export class TenantsService {
     };
   }
 
-  // Récupère un tenant par ID ou email
+  /**
+   * Récupère un tenant par ID ou email
+   */
   async getTenant(where: Prisma.tenantWhereUniqueInput) {
     const tenant = await this.prisma.tenant.findUnique({ where });
     if (!tenant) {
@@ -89,7 +95,9 @@ export class TenantsService {
     return tenant;
   }
 
-  // Change le plan d’un tenant
+  /**
+   * Met à jour le plan d’un tenant
+   */
   async updateTenantPlan(email: string, dto: UpdateTenantPlanDto) {
     const tenant = await this.getTenant({ email });
     if (tenant.plan === dto.plan) {
@@ -108,7 +116,9 @@ export class TenantsService {
     return updatedTenant;
   }
 
-  // Met à jour l’email d’un tenant
+  /**
+   * Met à jour l'email d’un tenant
+   */
   async updateTenantEmail(email: string, dto: UpdateTenantEmailDto) {
     const tenant = await this.getTenant({ email });
     if (tenant.email === dto.newEmail) {
@@ -135,7 +145,9 @@ export class TenantsService {
     return updatedTenant;
   }
 
-  // Suspend ou réactive un tenant
+  /**
+   * Suspend ou réactive un tenant
+   */
   async updateTenantSuspension(email: string, dto: UpdateTenantSuspensionDto) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { email },

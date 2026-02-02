@@ -11,17 +11,30 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { ApiKeyAuthGuard } from 'src/common/guards/api-key-auth.guard';
 import * as requestWithTenant from 'src/common/types/request-with-tenant';
 
+@ApiTags('Users')
+@ApiHeader({
+  name: 'x-api-key',
+  description: 'Tenant API key',
+  required: true,
+})
 @Controller('users')
 @UseGuards(ApiKeyAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Crée un utilisateur pour le tenant courant',
+  })
+  @ApiResponse({ status: 201, description: 'Utilisateur créé' })
+  @ApiResponse({ status: 409, description: 'Utilisateur déjà existant' })
+  @ApiResponse({ status: 400, description: 'Mauvaise requête' })
   async create(
     @Body() dto: CreateUserDto,
     @Req() req: requestWithTenant.RequestWithTenant,
@@ -30,35 +43,46 @@ export class UsersController {
     return this.usersService.createUser(dto, tenant.id);
   }
 
-  // 🔹 Soft delete ou réactivation (désactiver / activer un user)
-  @Patch(':externalId/active')
-  async setActiveState(
+  // 🔹 Modifier l'externalId d'un user
+  @Patch(':externalId')
+  @ApiOperation({
+    summary: "Modifie l'externalId d'un utilisateur",
+  })
+  @ApiResponse({ status: 201, description: 'Utilisateur mis à jour' })
+  @ApiResponse({ status: 409, description: 'Utilisateur déjà existant' })
+  @ApiResponse({ status: 400, description: 'Mauvaise requête' })
+  async setNewExternalId(
     @Param('externalId') externalId: string,
-    @Body('isActive') isActive: boolean,
+    @Body('newExternalId') newExternalId: string,
     @Req() req: requestWithTenant.RequestWithTenant,
   ) {
-    if (typeof isActive !== 'boolean') {
-      throw new BadRequestException('isActive (boolean) is required');
+    if (!newExternalId) {
+      throw new BadRequestException('newExternalId is required');
     }
 
-    const tenant = req.tenant;
-    const result = await this.usersService.setActiveState(
-      externalId,
-      tenant.id,
-      isActive,
-    );
+    const tenantId = req.tenant.id;
 
-    if (!result) throw new NotFoundException('User not found');
+    const updatedUser = await this.usersService.setNewExternalId(
+      externalId,
+      tenantId,
+      newExternalId,
+    );
 
     return {
       success: true,
-      externalId,
-      isActive,
+      externalId: externalId,
+      newExternalId: updatedUser.external_id,
     };
   }
 
-  // 🔹 Suppression définitive (hard delete)
+  // 🔹 Suppression définitive (hard delete) ou désactivation d'un user
   @Delete(':externalId')
+  @ApiOperation({
+    summary: 'Supprime ou désactive un utilisateur pour le tenant courant',
+  })
+  @ApiResponse({ status: 201, description: 'Utilisateur supprimé' })
+  @ApiResponse({ status: 409, description: 'Utilisateur déjà supprimé' })
+  @ApiResponse({ status: 400, description: 'Mauvaise requête' })
   async deleteUser(
     @Param('externalId') externalId: string,
     @Query('force') force: string,
@@ -86,5 +110,31 @@ export class UsersController {
     if (!softDeleted) throw new NotFoundException('User not found');
 
     return { success: true, deleted: false };
+  }
+
+  @Patch(':externalId/reactivate')
+  @ApiOperation({ summary: 'Réactiver un utilisateur désactivé' })
+  @ApiResponse({ status: 200, description: 'Utilisateur réactivé' })
+  @ApiResponse({ status: 404, description: 'Utilisateur introuvable' })
+  async reactivateUser(
+    @Param('externalId') externalId: string,
+    @Req() req: requestWithTenant.RequestWithTenant,
+  ) {
+    const tenantId = req.tenant.id;
+
+    const result = await this.usersService.setActiveState(
+      externalId,
+      tenantId,
+      true,
+    );
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      success: true,
+      reactivated: true,
+    };
   }
 }

@@ -8,8 +8,6 @@ export class ApiKeysService {
 
   /**
    * Génère et stocke une API key sécurisée pour un tenant donné.
-   * @param tenantEmail L'email du tenant
-   * @returns la clé API en clair (affichée une seule fois)
    */
   async generateForTenant(tenantEmail: string) {
     const tenant = await this.prisma.tenant.findUnique({
@@ -67,7 +65,7 @@ export class ApiKeysService {
 
     const action = isActive ? 'activated' : 'deactivated';
 
-    // Désactive ou réactive TOUTES les clés
+    // TOUTES les clés
     if (keyIdOrMode === 'all') {
       const result = await this.prisma.api_key.updateMany({
         where: { tenant_id: tenant.id, is_active: !isActive },
@@ -79,7 +77,7 @@ export class ApiKeysService {
       };
     }
 
-    // Latest ou oldest
+    // Première ou dernière clé
     if (['latest', 'oldest'].includes(keyIdOrMode)) {
       const order = keyIdOrMode === 'latest' ? 'desc' : 'asc';
       const key = await this.prisma.api_key.findFirst({

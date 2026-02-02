@@ -1,14 +1,15 @@
 // public/channel-configs/channel-configs.service.ts
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
-  BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, channel } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
-  Channel,
+  ChannelDto,
   CreateChannelConfigDto,
+  ListChannelConfigsDto,
 } from './dto/create-channel-config.dto';
 
 type ChannelConfigRecord = Prisma.channel_configGetPayload<{
@@ -38,13 +39,16 @@ type ChannelConfigSafe = Omit<ChannelConfigRecord, 'config_json'> & {
   config_json: EmailConfigSafe | ExpoPushConfig;
 };
 
+/**
+ * Type guards
+ */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function isEmailConfig(v: unknown): v is EmailConfig {
-  if (!isRecord(v)) return false;
   return (
+    isRecord(v) &&
     typeof v.smtpHost === 'string' &&
     typeof v.smtpPort === 'number' &&
     typeof v.from === 'string'
@@ -59,31 +63,33 @@ function isExpoConfig(v: unknown): v is ExpoPushConfig {
 export class ChannelConfigsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Crée une configuration de canal pour le tenant donné
+   */
   async createForTenant(tenantId: string, dto: CreateChannelConfigDto) {
     const configJson = this.toConfigJson(dto);
 
     try {
-      const created = await this.prisma.channel_config.create({
-        data: {
-          tenant_id: tenantId,
-          channel: dto.channel,
-          config_json: configJson,
-          allow_overrides: dto.allowOverrides ?? false,
-        },
-        select: {
-          id: true,
-          tenant_id: true,
-          channel: true,
-          allow_overrides: true,
-          created_at: true,
-          config_json: true,
-        },
-      });
+      const created: ChannelConfigRecord =
+        await this.prisma.channel_config.create({
+          data: {
+            tenant_id: tenantId,
+            channel: dto.channel,
+            config_json: configJson,
+            allow_overrides: dto.allowOverrides ?? false,
+          },
+          select: {
+            id: true,
+            tenant_id: true,
+            channel: true,
+            allow_overrides: true,
+            created_at: true,
+            config_json: true,
+          },
+        });
 
-      // ✅ Option sécurité: renvoyer une version “safe”
       return this.sanitizeConfig(created);
     } catch (e: unknown) {
-      // Unique violation => 409 ConfigExists
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
@@ -94,8 +100,46 @@ export class ChannelConfigsService {
     }
   }
 
+  /**
+   * Liste les configurations de canaux pour le tenant donné
+   */
+  async listForTenant(
+    tenantId: string,
+    query: ListChannelConfigsDto,
+  ): Promise<ChannelConfigSafe[]> {
+    const where: {
+      tenant_id: string;
+      channel?: channel;
+    } = {
+      tenant_id: tenantId,
+    };
+
+    if (query.channel) {
+      where.channel = query.channel;
+    }
+
+    const configs: ChannelConfigRecord[] =
+      await this.prisma.channel_config.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true,
+          tenant_id: true,
+          channel: true,
+          allow_overrides: true,
+          created_at: true,
+          config_json: true,
+        },
+      });
+
+    return configs.map((cfg) => this.sanitizeConfig(cfg));
+  }
+
+  /**
+   * Convertit un DTO de configuration de canal en JSON
+   */
   private toConfigJson(dto: CreateChannelConfigDto) {
-    if (dto.channel === Channel.EMAIL) {
+    if (dto.channel === ChannelDto.EMAIL) {
       const c = dto.email;
       if (!c?.smtpHost || !c?.smtpPort || !c?.from) {
         throw new BadRequestException(
@@ -111,7 +155,7 @@ export class ChannelConfigsService {
       };
     }
 
-    if (dto.channel === Channel.EXPO_PUSH) {
+    if (dto.channel === ChannelDto.EXPO_PUSH) {
       const c = dto.expoPush;
       if (!c?.projectId) {
         throw new BadRequestException('BadRequest: missing projectId');
@@ -122,10 +166,12 @@ export class ChannelConfigsService {
     throw new BadRequestException('BadRequest: unsupported channel');
   }
 
+  /**
+   * Nettoie une configuration de canal pour éviter d'exposer des informations sensibles
+   */
   private sanitizeConfig(record: ChannelConfigRecord): ChannelConfigSafe {
     if (record.channel === 'EMAIL' && isEmailConfig(record.config_json)) {
       const cfg = record.config_json;
-
       return {
         ...record,
         config_json: {
@@ -144,7 +190,7 @@ export class ChannelConfigsService {
 
     return {
       ...record,
-      config_json: record.config_json as unknown as ExpoPushConfig,
+      config_json: record.config_json as ExpoPushConfig,
     };
   }
 }

@@ -11,7 +11,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-export enum Channel {
+export enum ChannelDto {
   EMAIL = 'EMAIL',
   EXPO_PUSH = 'EXPO_PUSH',
 }
@@ -46,20 +46,26 @@ export class ExpoPushConfigDto {
 }
 
 export class CreateChannelConfigDto {
-  @IsEnum(Channel)
-  channel!: Channel;
+  @IsEnum(ChannelDto)
+  channel!: ChannelDto;
 
   // Config EMAIL
-  @ValidateIf((dto) => dto.channel === Channel.EMAIL)
+  @ValidateIf((dto) => dto.channel === ChannelDto.EMAIL)
   @IsObject()
   email!: EmailConfigDto;
 
   // Config EXPO
-  @ValidateIf((dto) => dto.channel === Channel.EXPO_PUSH)
+  @ValidateIf((dto) => dto.channel === ChannelDto.EXPO_PUSH)
   @IsObject()
   expoPush!: ExpoPushConfigDto;
 
   @IsOptional()
   @IsBoolean()
   allowOverrides?: boolean;
+}
+
+export class ListChannelConfigsDto {
+  @IsOptional()
+  @IsEnum(ChannelDto)
+  channel?: ChannelDto;
 }
