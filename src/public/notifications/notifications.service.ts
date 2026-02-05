@@ -23,6 +23,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DateTime } from 'luxon';
 import { Logger } from '@nestjs/common';
+import { ListNotificationsDto } from './dto/list-notifications.dto';
 
 /* ------------------ Type ------------------ */
 
@@ -80,23 +81,31 @@ function toPrismaJson(value: unknown): Prisma.InputJsonValue {
 }
 
 function assertPlanAllowsSendAt(tenantPlan: plan, sendAt: Date) {
-  const now = new Date();
-  const diffMs = sendAt.getTime() - now.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const now = Date.now();
+  const diffMs = sendAt.getTime() - now;
+
+  if (Number.isNaN(sendAt.getTime())) {
+    throw new BadRequestException('BadRequest: invalid sendAt');
+  }
+
+  if (diffMs <= 0) {
+    throw new BadRequestException('sendAt must be in the future');
+  }
 
   if (tenantPlan === plan.FREE) {
     throw new ForbiddenException('PlanFeatureNotAvailable');
   }
 
-  if (tenantPlan === plan.PRO && diffDays > 30) {
-    throw new UnprocessableEntityException(
-      'ScheduleHorizonExceeded (max 30 days)',
-    );
-  }
+  const maxMs =
+    tenantPlan === plan.PRO
+      ? 30 * 24 * 60 * 60 * 1000
+      : 365 * 24 * 60 * 60 * 1000; // ULTRA
 
-  if (tenantPlan === plan.ULTRA && diffDays > 365) {
+  if (diffMs > maxMs) {
     throw new UnprocessableEntityException(
-      'ScheduleHorizonExceeded (max 365 days)',
+      tenantPlan === plan.PRO
+        ? 'ScheduleHorizonExceeded (max 30 days)'
+        : 'ScheduleHorizonExceeded (max 365 days)',
     );
   }
 }
@@ -104,7 +113,6 @@ function assertPlanAllowsSendAt(tenantPlan: plan, sendAt: Date) {
 function parseEmailConfig(value: unknown): EmailConfig {
   if (!isRecord(value)) throw new BadRequestException('InvalidEmailConfig');
 
-  // Minimal runtime sanity checks
   const smtpHost = value.smtpHost;
   const smtpPort = value.smtpPort;
   const from = value.from;
@@ -210,7 +218,7 @@ export function normalizeSendAt(
   const raw = value.trim();
   let dt: DateTime;
 
-  // date only
+  // date sans time => 09:00 dans le timezone du tenant
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     dt = DateTime.fromISO(raw, { zone: tenantTimeZone }).set({
       hour: 9,
@@ -231,11 +239,15 @@ export function normalizeSendAt(
     throw new BadRequestException('sendAt must be in the future');
   }
 
-  return dt.toJSDate(); // absolute instant, stored in DB as UTC
+  return dt.toJSDate();
 }
 
 function hasZone(iso: string): boolean {
   return /([zZ]|[+-]\d{2}:\d{2})$/.test(iso);
+}
+
+function msUntil(date: Date): number {
+  return Math.max(0, date.getTime() - Date.now());
 }
 
 /* ------------------ Service ------------------ */
@@ -252,7 +264,7 @@ export class NotificationsService {
 
   private readonly logger = new Logger(NotificationsService.name);
   async createAndSend(dto: CreateNotificationDto, tenantId: string) {
-    // 0) Load tenant plan (for sendAt feature gate)
+    // 0) Charger le tenant et son plan
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { plan: true },
@@ -260,7 +272,7 @@ export class NotificationsService {
 
     if (!tenant) throw new BadRequestException('TenantNotFound');
 
-    // 1) Resolve recipients + optional userId
+    // 1) Resoudre les destinataires
     let userId: string | null = null;
     let recipients: string[] = [];
 
@@ -302,18 +314,18 @@ export class NotificationsService {
       throw new BadRequestException('InvalidRecipientMode');
     }
 
-    // 2) Resolve sendAt
+    // 2) Resoudre sendAt
     const tenantTimeZone = 'Europe/Paris'; // MVP: plus tard => tenant.timezone
     const sendAt = dto.sendAt
       ? normalizeSendAt(dto.sendAt, tenantTimeZone)
       : new Date();
 
-    // 3) Plan gating/horizon
+    // 3) Plan et feature gate pour sendAt
     if (dto.sendAt) {
       assertPlanAllowsSendAt(tenant.plan, sendAt);
     }
 
-    // 4) Optionally: validate channel config exists now (fail fast)
+    // 4) Valider que la config du channel existe
     const cfgExists = await this.prisma.channel_config.findUnique({
       where: {
         uk_cfg_tenant_channel: {
@@ -328,7 +340,7 @@ export class NotificationsService {
       throw new BadRequestException('ChannelConfigNotFound');
     }
 
-    // 5) Create notification in DB (always QUEUED)
+    // 5) Créer la notification en BDD
     const notification = await this.prisma.notification.create({
       data: {
         tenant_id: tenantId,
@@ -352,7 +364,7 @@ export class NotificationsService {
       },
     });
 
-    // 6) Enqueue BullMQ job with delay
+    // 6) Mettre en queue dans BullMQ
     recipients = [...new Set(recipients)];
     const delayMs = Math.max(0, notification.send_at!.getTime() - Date.now());
 
@@ -367,7 +379,6 @@ export class NotificationsService {
       },
     );
 
-    // 7) Story response
     return {
       id: notification.id,
       status: 'QUEUED',
@@ -377,10 +388,10 @@ export class NotificationsService {
 
   /**
    * Worker path:
-   * called by NotificationsProcessor for each attempt
+   * Appelé par le worker BullMQ pour envoyer la notification
    */
   async performSend(notificationId: string, tryNumber: number): Promise<void> {
-    // 1) Load notification (source of truth)
+    // 1) Charge la notification
     const notif = await this.prisma.notification.findUnique({
       where: { id: notificationId },
       select: {
@@ -396,7 +407,12 @@ export class NotificationsService {
 
     if (!notif) return;
 
-    // If already delivered/failed, skip (idempotent worker behavior)
+    if (notif.status === notification_status.CANCELED) {
+      this.logger.log(`[SKIP] notif=${notificationId} canceled`);
+      return;
+    }
+
+    // Si déjà DELIVERED ou FAILED, ne rien faire
     if (
       notif.status === notification_status.DELIVERED ||
       notif.status === notification_status.FAILED
@@ -404,7 +420,7 @@ export class NotificationsService {
       return;
     }
 
-    // 2) Mark SENDING + sent_at (only update if first time or re-attempt)
+    // 2) Met à jour le statut -> SENDING
     await this.prisma.notification.update({
       where: { id: notif.id },
       data: {
@@ -413,7 +429,7 @@ export class NotificationsService {
       },
     });
 
-    // 3) Resolve recipients from snapshot
+    // 3) Recupère les destinataires depuis le snapshot
     const snap = parseRecipientSnapshot(notif.recipient_snapshot);
 
     let recipients: string[] = [];
@@ -432,7 +448,7 @@ export class NotificationsService {
       return;
     }
 
-    // 4) Load channel config at send time
+    // 4) Charge la config du channel
     const channelConfig = await this.prisma.channel_config.findUnique({
       where: {
         uk_cfg_tenant_channel: {
@@ -452,7 +468,7 @@ export class NotificationsService {
       return;
     }
 
-    // 5) Execute send (timeout 10s) + attempt log
+    // 5) Envoie la notification via le bon sender
     await this.sendWithAttempt(notif.id, tryNumber, async () => {
       if (notif.channel === channel.EMAIL) {
         const emailConfig = parseEmailConfig(channelConfig.config_json);
@@ -489,7 +505,7 @@ export class NotificationsService {
       throw new Error('UnsupportedChannel');
     });
 
-    // 6) Update notification -> DELIVERED
+    // 6) Update la notification -> DELIVERED
     await this.prisma.notification.update({
       where: { id: notif.id },
       data: {
@@ -501,7 +517,7 @@ export class NotificationsService {
   }
 
   /**
-   * Called by processor when last attempt is reached
+   * Appelé par le worker quand toutes les tentatives ont échoué
    */
   async markFailed(notificationId: string, err: unknown): Promise<void> {
     await this.prisma.notification.update({
@@ -552,5 +568,211 @@ export class NotificationsService {
     });
 
     throw err;
+  }
+
+  async listForTenant(tenantId: string, query: ListNotificationsDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    // Valider les dates from/to
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+
+    if (query.from) fromDate = new Date(query.from);
+    if (query.to) toDate = new Date(query.to);
+
+    if (fromDate && Number.isNaN(fromDate.getTime())) {
+      throw new BadRequestException('BadRequest: invalid from');
+    }
+    if (toDate && Number.isNaN(toDate.getTime())) {
+      throw new BadRequestException('BadRequest: invalid to');
+    }
+    if (fromDate && toDate && fromDate.getTime() > toDate.getTime()) {
+      throw new BadRequestException('BadRequest: invalid date range');
+    }
+
+    // Construire le filtre where
+    const where: Prisma.notificationWhereInput = {
+      tenant_id: tenantId,
+    };
+
+    if (query.status) where.status = query.status;
+    if (query.channel) where.channel = query.channel;
+
+    if (fromDate || toDate) {
+      where.created_at = {};
+      if (fromDate) where.created_at.gte = fromDate;
+      if (toDate) where.created_at.lte = toDate;
+    }
+
+    // Filtrer par userExternalId si fourni
+    if (query.userExternalId) {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          uk_user_tenant_external: {
+            tenant_id: tenantId,
+            external_id: query.userExternalId,
+          },
+        },
+        select: { id: true },
+      });
+
+      // si user n'existe pas => liste vide (pas une erreur)
+      if (!user) {
+        return {
+          data: [],
+          meta: {
+            page,
+            pageSize,
+            total: 0,
+            totalPages: 0,
+          },
+        };
+      }
+
+      where.user_id = user.id;
+    }
+
+    // Pagination + requête
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.findMany({
+        where,
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          tenant_id: true,
+          user_id: true,
+          channel: true,
+          recipient_mode: true,
+          subject: true,
+          status: true,
+          send_at: true,
+          created_at: true,
+          sent_at: true,
+          delivered_at: true,
+          error: true,
+          dedupe_key: true,
+        },
+      }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+    return {
+      data: rows,
+      meta: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+    };
+  }
+
+  async cancelNotification(tenantId: string, notificationId: string) {
+    // 1) fetch notification
+    const notif = await this.prisma.notification.findFirst({
+      where: { id: notificationId, tenant_id: tenantId },
+      select: { id: true, status: true },
+    });
+
+    if (!notif) return null;
+
+    // 2) valider état
+    if (notif.status !== notification_status.QUEUED) {
+      throw new UnprocessableEntityException(
+        'InvalidState: already sending/sent',
+      );
+    }
+
+    // 3) Met à jour le statut -> CANCELED
+    await this.prisma.notification.update({
+      where: { id: notif.id },
+      data: {
+        status: notification_status.CANCELED,
+        error: null,
+      },
+    });
+
+    // 4) Enlever le job de la queue BullMQ
+    try {
+      const job = await this.notifQueue.getJob(notif.id);
+      if (job) {
+        await job.remove();
+      }
+    } catch {
+      // Si erreur lors de la suppression du job, on continue sans erreur
+    }
+
+    return { success: true, id: notif.id, status: 'CANCELED' as const };
+  }
+
+  async rescheduleNotification(
+    tenantId: string,
+    tenantPlan: plan,
+    notificationId: string,
+    sendAtIso: string,
+  ) {
+    // 1) Valider sendAt et les règles de plan
+    const sendAt = new Date(sendAtIso);
+    assertPlanAllowsSendAt(tenantPlan, sendAt);
+
+    // 2) Charger la notification et valider qu'elle existe et est dans le bon état
+    const notif = await this.prisma.notification.findFirst({
+      where: { id: notificationId, tenant_id: tenantId },
+      select: { id: true, status: true },
+    });
+
+    if (!notif) return null;
+
+    // 3) Check l'état de la notification : uniquement en QUEUED peuvent être replanifiées
+    if (notif.status !== notification_status.QUEUED) {
+      throw new UnprocessableEntityException(
+        'InvalidState: already sending/sent',
+      );
+    }
+
+    // 4) Met à jour la DB avec la nouvelle date d'envoi
+    await this.prisma.notification.update({
+      where: { id: notif.id },
+      data: {
+        send_at: sendAt,
+        status: notification_status.QUEUED,
+        error: null,
+      },
+    });
+
+    // 5) Reprogrammer le job dans BullMQ
+    try {
+      const existing = await this.notifQueue.getJob(notif.id);
+      if (existing) {
+        await existing.remove();
+      }
+    } catch {
+      // Même si erreur lors de la suppression de l'ancien job, on continue et on ajoute le nouveau job
+    }
+
+    const delayMs = msUntil(sendAt);
+
+    await this.notifQueue.add(
+      'send',
+      { notificationId: notif.id },
+      {
+        jobId: notif.id,
+        delay: delayMs,
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+
+    return {
+      success: true,
+      id: notif.id,
+      sendAt: sendAt.toISOString(),
+    };
   }
 }

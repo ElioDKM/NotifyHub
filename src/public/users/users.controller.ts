@@ -1,9 +1,9 @@
+// public/users/users.controller.ts
 import {
   Body,
   Controller,
   Post,
   Req,
-  UseGuards,
   Delete,
   Param,
   Patch,
@@ -12,10 +12,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dtos/create-user.dto';
 import { UsersService } from './users.service';
-import { ApiKeyAuthGuard } from 'src/common/guards/api-key-auth.guard';
 import * as requestWithTenant from 'src/common/types/request-with-tenant';
+import { PublicApi } from 'src/common/decorators/api.decorator';
 
 @ApiTags('Users')
 @ApiHeader({
@@ -23,8 +23,8 @@ import * as requestWithTenant from 'src/common/types/request-with-tenant';
   description: 'Tenant API key',
   required: true,
 })
+@PublicApi()
 @Controller('users')
-@UseGuards(ApiKeyAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 
 import { AuthModule } from './admin/auth/auth.module';
 import { TenantsModule } from './admin/tenants/tenants.module';
@@ -9,7 +10,7 @@ import { UsersModule } from './public/users/users.module';
 import { ChannelConfigsModule } from './public/channels-configs/channel-configs.module';
 import { SubscriptionsModule } from './public/subscriptions/subscriptions.module';
 import { NotificationModule } from './public/notifications/notifications.module';
-import { BullModule } from '@nestjs/bullmq';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { BullModule } from '@nestjs/bullmq';
         port: 6379,
       },
     }),
+    RedisModule,
     AuthModule,
     TenantsModule,
     UsersModule,

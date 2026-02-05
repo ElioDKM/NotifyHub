@@ -1,10 +1,24 @@
 // public/notifications/notifications.controller.ts
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiKeyAuthGuard } from 'src/common/guards/api-key-auth.guard';
 import { NotificationsService } from './notifications.service';
 import * as createNotificationDto from './dto/create-notification.dto';
+import * as listNotificationsDto from './dto/list-notifications.dto';
 import * as requestWithTenant from 'src/common/types/request-with-tenant';
+import { MonthlyQuotaGuard } from 'src/common/guards/monthly-quota.guard';
+import { PublicApi } from 'src/common/decorators/api.decorator';
+import { RescheduleNotificationDto } from './dto/reschedule-notification.dto';
 
 @ApiTags('Notifications')
 @ApiHeader({
@@ -12,18 +26,75 @@ import * as requestWithTenant from 'src/common/types/request-with-tenant';
   description: 'Tenant API key',
   required: true,
 })
+@PublicApi()
 @Controller('notifications')
-@UseGuards(ApiKeyAuthGuard)
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create and send a notification immediately (MVP)' })
-  @ApiResponse({ status: 201, description: 'Notification created and sent' })
+  @UseGuards(MonthlyQuotaGuard)
+  @ApiOperation({ summary: 'Créer et envoyer une notification' })
+  @ApiResponse({ status: 201, description: 'Notification créée et envoyée' })
   async create(
     @Body() dto: createNotificationDto.CreateNotificationDto,
     @Req() req: requestWithTenant.RequestWithTenant,
   ) {
     return this.service.createAndSend(dto, req.tenant.id);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Liste des notifications avec filtres et pagination',
+  })
+  @ApiResponse({ status: 200, description: 'Liste des notifications' })
+  async list(
+    @Req() req: requestWithTenant.RequestWithTenant,
+    @Query() query: listNotificationsDto.ListNotificationsDto,
+  ) {
+    return this.service.listForTenant(req.tenant.id, query);
+  }
+
+  @Patch(':id/cancel')
+  @ApiOperation({
+    summary: 'Annuler une notification en attente (avant son exécution)',
+  })
+  @ApiResponse({ status: 200, description: 'Notification annulée' })
+  @ApiResponse({ status: 404, description: 'Notification introuvable' })
+  @ApiResponse({ status: 422, description: 'État invalide' })
+  async cancel(
+    @Param('id') id: string,
+    @Req() req: requestWithTenant.RequestWithTenant,
+  ) {
+    const result = await this.service.cancelNotification(req.tenant.id, id);
+    if (!result) throw new NotFoundException('Notification introuvable');
+    return result;
+  }
+
+  @Patch(':id/reschedule')
+  @ApiOperation({
+    summary: 'Reprogrammer une notification en attente (avant son exécution)',
+  })
+  @ApiResponse({ status: 200, description: 'Notification reprogrammée' })
+  @ApiResponse({ status: 404, description: 'Notification introuvable' })
+  @ApiResponse({ status: 400, description: 'sendAt invalide' })
+  @ApiResponse({ status: 403, description: 'PlanFeatureNotAvailable (FREE)' })
+  @ApiResponse({
+    status: 422,
+    description: 'InvalidState / ScheduleHorizonExceeded',
+  })
+  async reschedule(
+    @Param('id') id: string,
+    @Body() body: RescheduleNotificationDto,
+    @Req() req: requestWithTenant.RequestWithTenant,
+  ) {
+    const result = await this.service.rescheduleNotification(
+      req.tenant.id,
+      req.tenant.plan,
+      id,
+      body.sendAt,
+    );
+
+    if (!result) throw new NotFoundException('NotFound');
+    return result;
   }
 }

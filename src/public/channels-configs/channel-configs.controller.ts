@@ -1,20 +1,12 @@
 // public/channel-configs/channel-configs.controller.ts
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiKeyAuthGuard } from 'src/common/guards/api-key-auth.guard';
 import {
   CreateChannelConfigDto,
   ListChannelConfigsDto,
 } from './dto/create-channel-config.dto';
 import { ChannelConfigsService } from './channel-configs.service';
+import { PublicApi } from 'src/common/decorators/api.decorator';
 
 export type TenantAuthContext = {
   id: string;
@@ -30,8 +22,8 @@ export type RequestWithTenant = {
   description: 'Tenant API key',
   required: true,
 })
+@PublicApi()
 @Controller('channel-configs')
-@UseGuards(ApiKeyAuthGuard)
 export class ChannelConfigsController {
   constructor(private readonly service: ChannelConfigsService) {}
 
