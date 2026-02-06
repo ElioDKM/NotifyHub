@@ -5,12 +5,14 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Prisma, channel } from '@prisma/client';
+import { channel as ChannelEnum } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   ChannelDto,
   CreateChannelConfigDto,
   ListChannelConfigsDto,
 } from './dto/create-channel-config.dto';
+import { UpdateChannelConfigDto } from './dto/update-channel-config.dto';
 
 type ChannelConfigRecord = Prisma.channel_configGetPayload<{
   select: {
@@ -30,6 +32,16 @@ type EmailConfig = {
   pass: string | null;
   from: string;
 };
+
+type EmailPatch = {
+  smtpHost?: string;
+  smtpPort?: number;
+  user?: string;
+  pass?: string;
+  from?: string;
+};
+
+type ExpoPatch = { projectId?: string };
 
 type EmailConfigSafe = Omit<EmailConfig, 'pass'> & { pass: string | null };
 
@@ -192,5 +204,110 @@ export class ChannelConfigsService {
       ...record,
       config_json: record.config_json as ExpoPushConfig,
     };
+  }
+
+  async updateForTenant(
+    tenantId: string,
+    channel: ChannelEnum,
+    dto: UpdateChannelConfigDto,
+  ) {
+    // 1) read existing (same shape as ChannelConfigRecord)
+    const existing = await this.prisma.channel_config.findUnique({
+      where: {
+        uk_cfg_tenant_channel: {
+          tenant_id: tenantId,
+          channel: channel,
+        },
+      },
+      select: {
+        id: true,
+        tenant_id: true,
+        channel: true,
+        allow_overrides: true,
+        created_at: true,
+        config_json: true,
+      },
+    });
+
+    if (!existing) return null;
+
+    // 2) merge + validate
+    const mergedConfig = this.mergeConfig(
+      existing.channel,
+      existing.config_json,
+      dto,
+    );
+
+    // 3) update + return same record type
+    const updated = await this.prisma.channel_config.update({
+      where: { id: existing.id },
+      data: {
+        config_json: mergedConfig as Prisma.InputJsonValue,
+        allow_overrides: dto.allowOverrides ?? existing.allow_overrides,
+      },
+      select: {
+        id: true,
+        tenant_id: true,
+        channel: true,
+        allow_overrides: true,
+        created_at: true,
+        config_json: true,
+      },
+    });
+
+    // 4) safe output
+    return this.sanitizeConfig(updated);
+  }
+
+  private mergeConfig(
+    channel: string,
+    existingJson: unknown,
+    dto: UpdateChannelConfigDto,
+  ) {
+    if (channel === ChannelEnum.EMAIL) {
+      if (!isEmailConfig(existingJson)) {
+        // DB corrompue / mauvais type
+        throw new BadRequestException('InvalidEmailConfigInDB');
+      }
+
+      const patch: EmailPatch = dto.email ?? {};
+
+      const merged = {
+        smtpHost: patch.smtpHost ?? existingJson.smtpHost,
+        smtpPort: patch.smtpPort ?? existingJson.smtpPort,
+        user: patch.user ?? existingJson.user ?? null,
+        pass: patch.pass ?? existingJson.pass ?? null,
+        from: patch.from ?? existingJson.from,
+      };
+
+      // validation minimale
+      if (!merged.smtpHost || !merged.smtpPort || !merged.from) {
+        throw new BadRequestException(
+          'BadRequest: missing smtpHost/smtpPort/from',
+        );
+      }
+
+      return merged;
+    }
+
+    if (channel === ChannelEnum.EXPO_PUSH) {
+      if (!isExpoConfig(existingJson)) {
+        throw new BadRequestException('InvalidExpoConfigInDB');
+      }
+
+      const patch: ExpoPatch = dto.expoPush ?? {};
+
+      const merged = {
+        projectId: patch.projectId ?? existingJson.projectId,
+      };
+
+      if (!merged.projectId) {
+        throw new BadRequestException('BadRequest: missing projectId');
+      }
+
+      return merged;
+    }
+
+    throw new BadRequestException('BadRequest: unsupported channel');
   }
 }

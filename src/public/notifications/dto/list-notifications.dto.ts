@@ -24,7 +24,7 @@ export class ListNotificationsDto {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ example: 'eliotest' })
+  @ApiPropertyOptional({ example: "Nom de l'utilisateur" })
   userExternalId?: string;
 
   @IsOptional()

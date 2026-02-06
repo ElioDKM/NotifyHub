@@ -97,4 +97,20 @@ export class NotificationsController {
     if (!result) throw new NotFoundException('NotFound');
     return result;
   }
+
+  @Get(':id')
+  @ApiOperation({
+    summary:
+      'Recuperer les détails d’une notification (y compris statut et historique des envois)',
+  })
+  @ApiResponse({ status: 200, description: 'Détails de la notification' })
+  @ApiResponse({ status: 404, description: 'Notification introuvable' })
+  async getOne(
+    @Param('id') id: string,
+    @Req() req: requestWithTenant.RequestWithTenant,
+  ) {
+    const notif = await this.service.getNotificationDetail(req.tenant.id, id);
+    if (!notif) throw new NotFoundException('NotFound');
+    return notif;
+  }
 }

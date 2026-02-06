@@ -7,10 +7,15 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { notification_status } from '@prisma/client';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue('notifications') private readonly notifQueue: Queue,
+  ) {}
 
   /**
    * Crée un utilisateur pour un tenant donné
@@ -117,6 +122,7 @@ export class UsersService {
           external_id: externalId,
         },
       },
+      select: { id: true },
     });
 
     if (!user) return null;
@@ -127,6 +133,25 @@ export class UsersService {
     });
 
     if (!isActive) {
+      const scheduled = await this.prisma.notification.findMany({
+        where: {
+          tenant_id: tenantId,
+          user_id: user.id,
+          status: notification_status.QUEUED,
+          send_at: { not: null, gt: new Date() },
+        },
+        select: { id: true },
+      });
+
+      const idsToRemove = scheduled.map((n) => n.id);
+
+      await this.prisma.notification.updateMany({
+        where: { id: { in: idsToRemove } },
+        data: { status: notification_status.CANCELED },
+      });
+
+      await this.removeNotifJobs(idsToRemove);
+
       await this.prisma.notification.updateMany({
         where: {
           user_id: user.id,
@@ -152,15 +177,39 @@ export class UsersService {
           external_id: externalId,
         },
       },
+      select: { id: true },
     });
 
     if (!user) return null;
 
+    const queued = await this.prisma.notification.findMany({
+      where: {
+        tenant_id: tenantId,
+        user_id: user.id,
+        status: notification_status.QUEUED,
+      },
+      select: { id: true },
+    });
+
+    const idsToRemove = queued.map((n) => n.id);
+
+    await this.removeNotifJobs(idsToRemove);
+
     await this.prisma.subscription.deleteMany({ where: { user_id: user.id } });
     await this.prisma.notification.deleteMany({ where: { user_id: user.id } });
-
     await this.prisma.user.delete({ where: { id: user.id } });
 
     return true;
+  }
+
+  private async removeNotifJobs(notificationIds: string[]) {
+    for (const id of notificationIds) {
+      try {
+        const job = await this.notifQueue.getJob(id);
+        if (job) await job.remove();
+      } catch {
+        // best effort: ignore
+      }
+    }
   }
 }

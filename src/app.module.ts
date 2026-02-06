@@ -11,6 +11,7 @@ import { ChannelConfigsModule } from './public/channels-configs/channel-configs.
 import { SubscriptionsModule } from './public/subscriptions/subscriptions.module';
 import { NotificationModule } from './public/notifications/notifications.module';
 import { RedisModule } from './common/redis/redis.module';
+import { UsageModule } from './common/usage/usage.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RedisModule } from './common/redis/redis.module';
     ChannelConfigsModule,
     SubscriptionsModule,
     NotificationModule,
+    UsageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

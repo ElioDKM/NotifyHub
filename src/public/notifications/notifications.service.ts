@@ -775,4 +775,64 @@ export class NotificationsService {
       sendAt: sendAt.toISOString(),
     };
   }
+
+  async getNotificationDetail(tenantId: string, notificationId: string) {
+    const notif = await this.prisma.notification.findFirst({
+      where: {
+        id: notificationId,
+        tenant_id: tenantId,
+      },
+      select: {
+        id: true,
+        tenant_id: true,
+        user_id: true,
+        channel: true,
+        recipient_mode: true,
+        subject: true,
+        content_json: true,
+        recipient_snapshot: true,
+        status: true,
+        send_at: true,
+        created_at: true,
+        sent_at: true,
+        delivered_at: true,
+        error: true,
+        dedupe_key: true,
+        attempts: {
+          orderBy: [{ try: 'asc' }, { created_at: 'asc' }],
+          select: {
+            id: true,
+            try: true,
+            status: true,
+            error: true,
+            created_at: true,
+          },
+        },
+      },
+    });
+
+    if (!notif) return null;
+
+    return {
+      id: notif.id,
+      channel: notif.channel,
+      recipientMode: notif.recipient_mode,
+      status: notif.status,
+      subject: notif.subject,
+      contentJson: notif.content_json,
+      recipientSnapshot: notif.recipient_snapshot,
+      sendAt: notif.send_at,
+      createdAt: notif.created_at,
+      sentAt: notif.sent_at,
+      deliveredAt: notif.delivered_at,
+      error: notif.error,
+      attempts: notif.attempts.map((a) => ({
+        id: a.id,
+        try: a.try,
+        status: a.status,
+        error: a.error,
+        createdAt: a.created_at,
+      })),
+    };
+  }
 }
