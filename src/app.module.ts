@@ -21,8 +21,8 @@ import { UsageModule } from './common/usage/usage.module';
     }),
     BullModule.forRoot({
       connection: {
-        host: '127.0.0.1',
-        port: 6379,
+        host: process.env.REDIS_HOST || 'localhost',
+        port: Number(process.env.REDIS_PORT || 6379),
       },
     }),
     RedisModule,

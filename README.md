@@ -1,99 +1,195 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NotifyHub
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NotifyHub est un **service de notifications “API as-a-service”**.  
+Il permet à une application cliente (un *tenant*) d’envoyer des notifications **multi-canaux** (Push Expo / Email) à ses utilisateurs, **immédiatement** ou **de façon planifiée** (`send_at`), via une API HTTP.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Le projet est conçu pour être :
+- **multi-tenant** (isolation des données par tenant),
+- **scalable** (traitements asynchrones via queue),
+- **traçable** (statuts, tentatives d’envoi),
+- **sécurisé** (API keys côté public, JWT côté admin).
 
-## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Fonctionnement (vue d’ensemble)
 
-## Project setup
+### 1) Authentification
+- **Public API** : authentification via `x-api-key` (clé rattachée à un tenant)
+- **Admin API** : authentification via **JWT** (login admin)
+
+### 2) Parcours typique côté client API
+1. Créer un **User** (référencé par `external_id`)
+2. Ajouter une ou plusieurs **Subscriptions** (Push Expo / Email)
+3. Créer une **Notification**
+   - sans `send_at` → envoi immédiat
+   - avec `send_at` → envoi planifié
+4. Suivre l’état de la notification (statuts + historique des tentatives)
+
+### 3) Asynchrone (BullMQ / Redis)
+L’API enregistre la demande puis délègue l’envoi à un traitement asynchrone (queue), ce qui permet :
+- de ne pas bloquer les requêtes HTTP,
+- de planifier des envois,
+- d’appliquer des stratégies de retry (si activées),
+- de tracer les tentatives (`delivery_attempt`).
+
+
+## Documentation API (Swagger / OpenAPI)
+
+Une fois l’API lancée, la documentation est accessible ici :
+
+- **Public API (tenant)** : http://localhost:3000/docs/public  
+- **Admin API** : http://localhost:3000/docs/admin  
+
+
+## Stack technique
+
+- **Node.js / TypeScript**
+- **NestJS**
+- **PostgreSQL** (Prisma ORM)
+- **Redis + BullMQ**
+- **SMTP (Mailtrap)** pour l’email
+- **Expo Push** pour les notifications push
+- **Swagger/OpenAPI** pour la doc API
+- **Postman** pour les tests manuels
+
+
+## Prérequis
+
+- Node.js (recommandé : LTS)
+- pnpm
+- PostgreSQL + Redis (si exécution hors Docker)
+- Docker + Docker Compose (si exécution via Docker)
+
+
+## Configuration (.env)
+
+Crée un fichier `.env` à la racine (ou copie depuis `.env.example`) et renseigne les variables nécessaires.
+
+> ⚠️ Important :  
+> - en **local**, la DB est souvent en `localhost:5433`  
+> - en **Docker**, l’API doit utiliser `postgres:5432`
+
+Exemple (Docker) :
+- `DATABASE_URL="postgresql://USER:PASSWORD@postgres:5432/notifyhub?schema=public"`
+- `REDIS_HOST=redis`
+- `REDIS_PORT=6379`
+
+
+## Installation
 
 ```bash
-$ pnpm install
-```
+pnpm install
+````
 
-## Compile and run the project
+## Lancer le projet (local)
+
+### Démarrage
 
 ```bash
 # development
-$ pnpm run start
+pnpm run start
 
 # watch mode
-$ pnpm run start:dev 
-$ npx prisma studio
-
-# production mode
-$ pnpm run start:prod
+pnpm run start:dev
 ```
 
-## Run tests
+### Prisma Studio (visualiser la DB)
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+npx prisma studio
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Production
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
-## Resources
+## Base de données (Prisma)
 
-Check out a few resources that may come in handy when working with NestJS:
+### Appliquer le schéma / migrations
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Selon ton workflow :
 
-## Support
+* si tu utilises les migrations Prisma : `pnpm prisma migrate deploy`
+* sinon (dev) : `pnpm prisma db push`
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Seed
 
-## Stay in touch
+```bash
+pnpm prisma db seed
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-## License
+## Lancer via Docker (recommandé)
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+> Le docker-compose se trouve dans `docker/docker-compose.yml`.
+
+### Build + run
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+```
+
+### Logs
+
+```bash
+docker logs -f notifyhub-api
+```
+
+> Astuce : si ton `.env` est orienté Docker, utilise un fichier dédié (ex : `.env.docker`).
+
+
+## Endpoints (aperçu)
+
+### Public API (tenant)
+
+* `/users`
+* `/subscriptions`
+* `/channel-configs`
+* `/notifications`
+* `/usage`
+
+> Auth : `x-api-key`
+
+### Admin API
+
+* `/admin/auth/login`
+* `/admin/tenants`
+* `/admin/tenants/:tenantEmail/api-keys`
+* `/admin/tenants/:email/usage`
+
+> Auth : `Authorization: Bearer <token>`
+
+
+## Tests
+
+Le projet est validé principalement via des tests manuels Postman (scénarios MVP) :
+
+* auth tenant (x-api-key)
+* création user + subscription
+* création notification immédiate / planifiée
+* annulation / replanification (si disponible)
+* endpoints admin (JWT)
+
+
+## Structure (exemple)
+
+* `src/public/*` : routes et logique Public API
+* `src/admin/*` : routes Admin API (auth, tenants, api keys, usage)
+* `src/common/*` : guards, types, helpers
+* `prisma/*` : schema, migrations, seed
+
+
+## Roadmap (exemples)
+
+* Séparation API / worker en services Docker distincts (scalabilité)
+* Signature webhook (HMAC) + retries configurables
+* Nouveaux canaux : SMS / Discord / Slack
+* Analytics / métriques d’usage par tenant
+* Back-office admin (UI)
+
+
+## Licence
+
+Projet personnel / pédagogique.
