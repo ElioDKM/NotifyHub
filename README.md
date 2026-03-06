@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.svg" width="200"/>
+</p>
+
 # NotifyHub
 
 NotifyHub est un **service de notifications “API as-a-service”**.  
