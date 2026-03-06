@@ -56,7 +56,7 @@ export class UsersService {
   /**
    * Modifie l’externalId d’un utilisateur donné dans un tenant donné
    */
-  async setNewExternalId(
+  setNewExternalId(
     externalId: string,
     tenantId: string,
     newExternalId: string,

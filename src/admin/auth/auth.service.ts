@@ -30,7 +30,7 @@ export class AuthService {
       role: admin.role,
     };
 
-    const accessToken = (await this.jwtService.signAsync(payload)) as string;
+    const accessToken = await this.jwtService.signAsync(payload);
 
     return {
       accessToken,
