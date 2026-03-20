@@ -1,0 +1,11 @@
+$kind: http-request
+name: users/:externalId/reactivate
+url: "{{local 3000}}/users/:externalId/reactivate"
+method: PATCH
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+pathVariables:
+  externalId: user-001
+auth:
+  type: noauth
+order: 3000

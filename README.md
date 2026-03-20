@@ -135,6 +135,12 @@ pnpm prisma db seed
 docker compose --env-file .env -f docker/docker-compose.yml up -d --build
 ```
 
+### Stop
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml down
+```
+
 ### Logs
 
 ```bash

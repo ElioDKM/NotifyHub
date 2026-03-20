@@ -1,0 +1,14 @@
+$kind: http-request
+name: notifications/id
+url: "{{local 3000}}/notifications/:id"
+method: GET
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+pathVariables:
+  id: ad8f58f6-add0-4c47-a16e-cb2612858751
+body:
+  type: json
+  content: ""
+auth:
+  type: noauth
+order: 13000

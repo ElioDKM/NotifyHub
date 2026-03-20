@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{local 3000}}/channel-configs"
+method: POST
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+body:
+  type: json
+  content: "{\r
+
+    \  \"channel\": \"EMAIL\",\r
+
+    \  \"email\": {\r
+
+    \    \"smtpHost\": \"sandbox.smtp.mailtrap.io\",\r
+
+    \    \"smtpPort\": 587,\r
+
+    \    \"user\": \"6d83fa6b6a30d9\",\r
+
+    \    \"pass\": \"8aefc8f9b6ed01\",\r
+
+    \    \"from\": \"NotifyHub <no-reply@notifyhub.dev>\"\r
+
+    \  },\r
+
+    \  \"allowOverrides\": false\r
+
+    }"
+auth:
+  type: noauth
+order: 5000

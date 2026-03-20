@@ -1,0 +1,26 @@
+$kind: http-request
+name: channel-configs/:channel
+url: "{{local 3000}}/channel-configs/:channel"
+method: PATCH
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+pathVariables:
+  channel: EMAIL
+body:
+  type: json
+  content: "{\r
+
+    \  \"email\": {\r
+
+    \    \"from\": \"NotifyHub <no-reply@notifyhub.dev>\",\r
+
+    \    \"pass\": \"new-secret\"\r
+
+    \  },\r
+
+    \  \"allowOverrides\": false\r
+
+    }"
+auth:
+  type: noauth
+order: 6000

@@ -1,0 +1,14 @@
+$kind: http-request
+name: admin/auth/login
+url: "{{local 3000}}/admin/auth/login"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"email\": \"eliodikoume@gmail.com\",\r
+
+    \  \"password\": \"Notify!9486\"\r
+
+    }"
+order: 1000

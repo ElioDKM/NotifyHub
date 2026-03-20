@@ -1,0 +1,29 @@
+$kind: http-request
+description: |-
+  ### Filtres possibles (query params)
+
+  - `status` : `QUEUED | SENDING | SENT | DELIVERED | FAILED | CANCELED`
+      
+  - `channel` : `EMAIL | EXPO_PUSH`
+      
+  - `userExternalId` : ex `eliotest`
+      
+  - `from` / `to` : dates ISO (ex `2026-01-01T00:00:00Z`)
+      
+  - `page` : 1,2,3…
+      
+  - `pageSize` : 1–100
+url: "{{local 3000}}/notifications?page=1&pageSize=20&status=SENT"
+method: GET
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+queryParams:
+  page: "1"
+  pageSize: "20"
+  status: SENT
+body:
+  type: json
+  content: ""
+auth:
+  type: noauth
+order: 14000

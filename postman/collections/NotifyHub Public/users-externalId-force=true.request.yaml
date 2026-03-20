@@ -1,0 +1,27 @@
+$kind: http-request
+name: users/:externalId?force=true
+description: >-
+  si force en query est false : soft delete du user, compte et notification
+  désactivé
+
+
+  si force en query est true : hard delete du user, compte, notification et
+  subscription supprimé
+url: "{{local 3000}}/users/:externalId?force=false"
+method: DELETE
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+queryParams:
+  force: "false"
+pathVariables:
+  externalId: user-002
+body:
+  type: json
+  content: "{\r
+
+    \  \"newEmail\": \"captainelio@gmail.com\"\r
+
+    }"
+auth:
+  type: noauth
+order: 4000

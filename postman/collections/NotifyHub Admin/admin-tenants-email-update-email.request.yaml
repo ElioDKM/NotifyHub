@@ -1,0 +1,18 @@
+$kind: http-request
+name: admin/tenants/:email/update-email
+url: "{{local 3000}}/admin/tenants/:email/update-email"
+method: PATCH
+pathVariables:
+  email: captainelio@gmail.com
+body:
+  type: json
+  content: "{\r
+
+    \  \"newEmail\": \"captainelio@gmail.com\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTc5ODgzYi1kNjExLTQyNDEtYTBmNi1mMTkwNzA3N2EwYzgiLCJlbWFpbCI6ImVsaW9kaWtvdW1lQGdtYWlsLmNvbSIsInJvbGUiOiJQTEFURk9STV9BRE1JTiIsImlhdCI6MTc2NjA2NzY0MCwiZXhwIjoxNzY2MTU0MDQwfQ.NKpveWH0BPSZx1tWuEcdUb47UmuloRDX29GljXCJRsQ
+order: 6000

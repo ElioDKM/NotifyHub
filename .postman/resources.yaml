@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: 410e70e1-3716-48cb-8746-7d50231d4370
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+cloudResources:
+  collections:
+    ..\postman\collections\NotifyHub Admin: 36026629-45f2cce9-4d13-4e1b-8765-03a51f604faf
+    ..\postman\collections\NotifyHub Public: 36026629-bb231993-155e-4df3-b17b-39f49ab84c67
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

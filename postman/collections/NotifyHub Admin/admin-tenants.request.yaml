@@ -1,0 +1,20 @@
+$kind: http-request
+name: admin/tenants
+url: "{{local 3000}}/admin/tenants"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"email\": \"captainelio@gmail.com\",\r
+
+    \  \"plan\": \"PRO\",\r
+
+    \  \"issueApiKey\": true\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1MTc5ODgzYi1kNjExLTQyNDEtYTBmNi1mMTkwNzA3N2EwYzgiLCJlbWFpbCI6ImVsaW9kaWtvdW1lQGdtYWlsLmNvbSIsInJvbGUiOiJQTEFURk9STV9BRE1JTiIsImlhdCI6MTc2NjA1NDkzMiwiZXhwIjoxNzY2MTQxMzMyfQ.jvb0bvpu3m22QcU4i-1LGBP8bJ62OkhFstdD6JkhkfY
+order: 2000

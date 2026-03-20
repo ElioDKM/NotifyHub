@@ -1,0 +1,16 @@
+$kind: http-request
+name: notifications/id/cancel
+url: "{{local 3000}}/notifications/:id/cancel"
+method: PATCH
+headers:
+  - key: x-api-key
+    value: key_2210bbe5fb5ad56fdb8cce08dba7d5419f139ef7d7f41f9dae843552fc577638
+pathVariables:
+  - key: id
+    value: ad8f58f6-add0-4c47-a16e-cb2612858751
+body:
+  type: json
+  content: ""
+auth:
+  type: noauth
+order: 12307

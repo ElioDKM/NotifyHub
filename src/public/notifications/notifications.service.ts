@@ -718,7 +718,10 @@ export class NotificationsService {
     sendAtIso: string,
   ) {
     // 1) Valider sendAt et les règles de plan
-    const sendAt = new Date(sendAtIso);
+    const tenantTimeZone = 'Europe/Paris'; // MVP: plus tard => tenant.timezone
+    const sendAt = sendAtIso
+      ? normalizeSendAt(sendAtIso, tenantTimeZone)
+      : new Date();
     assertPlanAllowsSendAt(tenantPlan, sendAt);
 
     // 2) Charger la notification et valider qu'elle existe et est dans le bon état

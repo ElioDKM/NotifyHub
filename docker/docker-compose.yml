@@ -31,6 +31,15 @@ services:
       retries: 20
     networks: [notifyhub_net]
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: notifyhub-mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks: [notifyhub_net]
+
   api:
     build:
       context: ..
@@ -46,6 +55,10 @@ services:
       redis:
         condition: service_healthy
     networks: [notifyhub_net]
+    working_dir: /app
+    volumes:
+    - ..:/app
+    - /app/node_modules
     command: sh -c "pnpm prisma generate && pnpm run start:dev"
 
 volumes:

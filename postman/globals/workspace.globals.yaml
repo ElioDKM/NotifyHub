@@ -1,0 +1,5 @@
+name: Globals
+values:
+  - key: local 3000
+    value: ''
+    enabled: true

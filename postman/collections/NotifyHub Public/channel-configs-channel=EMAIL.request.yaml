@@ -1,0 +1,16 @@
+$kind: http-request
+name: channel-configs/?channel=EMAIL
+description: Liste les configurations de canaux pour le tenant courant,
+  possibilité de filtrer par type de channel
+url: "{{local 3000}}/channel-configs/?channel=EMAIL"
+method: GET
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+queryParams:
+  channel: EMAIL
+body:
+  type: json
+  content: ""
+auth:
+  type: noauth
+order: 7000

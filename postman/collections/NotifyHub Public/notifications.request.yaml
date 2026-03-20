@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{local 3000}}/notifications"
+method: POST
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+body:
+  type: json
+  content: "{\r
+
+    \  \"recipientMode\": \"BY_USER\",\r
+
+    \  \"userExternalId\": \"eliotest\",\r
+
+    \  \"channel\": \"EMAIL\",\r
+
+    \  \"subject\": \"essaie plaanifié sans double 3\",\r
+
+    \  \"sendAt\": \"2026-01-16T16:36:00\",\r
+
+    \  \"content\": { \"text\": \"test incroyable lets go 16h36\" }\r
+
+    }"
+auth:
+  type: noauth
+order: 11000

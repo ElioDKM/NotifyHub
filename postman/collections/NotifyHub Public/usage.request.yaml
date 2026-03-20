@@ -1,0 +1,12 @@
+$kind: http-request
+description: Donne l'usage en fonction de la clé api donnée
+url: "{{local 3000}}/usage"
+method: GET
+headers:
+  x-api-key: key_fef21f2dcb79680e032e89fa3a896189a7350c47bf44f7fcc1c86cf3f35a8d39
+body:
+  type: json
+  content: ""
+auth:
+  type: noauth
+order: 15000
