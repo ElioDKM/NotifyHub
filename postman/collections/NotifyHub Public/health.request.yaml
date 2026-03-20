@@ -1,0 +1,8 @@
+$kind: http-request
+name: health
+description: Vérifie l'état de l'api
+url: "{{local 3000}}/health"
+method: GET
+auth:
+  type: noauth
+order: 405

@@ -59,6 +59,11 @@ services:
     volumes:
     - ..:/app
     - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
     command: sh -c "pnpm prisma generate && pnpm run start:dev"
 
 volumes:

@@ -12,6 +12,7 @@ import { SubscriptionsModule } from './public/subscriptions/subscriptions.module
 import { NotificationModule } from './public/notifications/notifications.module';
 import { RedisModule } from './common/redis/redis.module';
 import { UsageModule } from './common/usage/usage.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { UsageModule } from './common/usage/usage.module';
     SubscriptionsModule,
     NotificationModule,
     UsageModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
