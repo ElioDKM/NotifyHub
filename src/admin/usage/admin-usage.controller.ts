@@ -19,7 +19,6 @@ export class AdminUsageController {
     private readonly prisma: PrismaService,
   ) {}
 
-  // @UseGuards(AuthGuard('jwt')) // ✅ si tu utilises passport-jwt
   @Get(':email/usage')
   @ApiOperation({ summary: 'Get current usage for a tenant (admin only)' })
   @ApiResponse({ status: 200, description: 'Usage returned' })

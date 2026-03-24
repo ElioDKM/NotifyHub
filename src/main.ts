@@ -6,11 +6,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AuthModule } from './admin/auth/auth.module';
 import { TenantsModule } from './admin/tenants/tenants.module';
 import { ApiKeysModule } from './admin/api_keys/api-keys.module';
+import { AdminUsageModule } from './admin/usage/admin-usage.module';
 
 import { UsersModule } from './public/users/users.module';
 import { ChannelConfigsModule } from './public/channels-configs/channel-configs.module';
 import { SubscriptionsModule } from './public/subscriptions/subscriptions.module';
 import { NotificationModule } from './public/notifications/notifications.module';
+import { PublicUsageModule } from './public/usage/usage.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -28,7 +30,7 @@ async function bootstrap() {
     .build();
 
   const adminDocument = SwaggerModule.createDocument(app, adminConfig, {
-    include: [AuthModule, TenantsModule, ApiKeysModule],
+    include: [AuthModule, TenantsModule, ApiKeysModule, AdminUsageModule],
   });
 
   SwaggerModule.setup('docs/admin', app, adminDocument);
@@ -53,6 +55,7 @@ async function bootstrap() {
       ChannelConfigsModule,
       SubscriptionsModule,
       NotificationModule,
+      PublicUsageModule,
     ],
   });
 

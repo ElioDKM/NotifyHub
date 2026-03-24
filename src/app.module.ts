@@ -11,8 +11,9 @@ import { ChannelConfigsModule } from './public/channels-configs/channel-configs.
 import { SubscriptionsModule } from './public/subscriptions/subscriptions.module';
 import { NotificationModule } from './public/notifications/notifications.module';
 import { RedisModule } from './common/redis/redis.module';
-import { UsageModule } from './common/usage/usage.module';
 import { HealthModule } from './health/health.module';
+import { AdminUsageModule } from './admin/usage/admin-usage.module';
+import { PublicUsageModule } from './public/usage/usage.module';
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { HealthModule } from './health/health.module';
     ChannelConfigsModule,
     SubscriptionsModule,
     NotificationModule,
-    UsageModule,
+    AdminUsageModule,
+    PublicUsageModule,
     HealthModule,
   ],
   controllers: [AppController],
