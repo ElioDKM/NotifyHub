@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -730,7 +731,9 @@ export class NotificationsService {
       select: { id: true, status: true },
     });
 
-    if (!notif) return null;
+    if (!notif) {
+      throw new NotFoundException('NotificationNotFound');
+    }
 
     // 3) Check l'état de la notification : uniquement en QUEUED peuvent être replanifiées
     if (notif.status !== notification_status.QUEUED) {

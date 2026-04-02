@@ -65,8 +65,8 @@ describe('UsersService.setNewExternalId', () => {
       user: {
         findUnique: jest
           .fn()
-          .mockResolvedValueOnce({ id: 'u1' }) // existing user
-          .mockResolvedValueOnce(null), // no duplicate
+          .mockResolvedValueOnce({ id: 'u1' })
+          .mockResolvedValueOnce(null),
         update: jest.fn().mockResolvedValue({ id: 'u1', external_id: 'new' }),
       },
     };

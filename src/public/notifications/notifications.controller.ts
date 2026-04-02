@@ -11,7 +11,15 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiExtraModels,
+  ApiHeader,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import * as createNotificationDto from './dto/create-notification.dto';
 import * as listNotificationsDto from './dto/list-notifications.dto';
@@ -21,6 +29,10 @@ import { PublicApi } from 'src/common/decorators/api.decorator';
 import { RescheduleNotificationDto } from './dto/reschedule-notification.dto';
 
 @ApiTags('Notifications')
+@ApiExtraModels(
+  createNotificationDto.NotificationByUserDto,
+  createNotificationDto.NotificationInlineDto,
+)
 @ApiHeader({
   name: 'x-api-key',
   description: 'Tenant API key',
@@ -35,6 +47,48 @@ export class NotificationsController {
   @UseGuards(MonthlyQuotaGuard)
   @ApiOperation({ summary: 'Créer et envoyer une notification' })
   @ApiResponse({ status: 201, description: 'Notification créée et envoyée' })
+  @ApiResponse({ status: 400, description: 'Données invalides' })
+  @ApiResponse({ status: 403, description: 'Quota mensuel dépassé' })
+  @ApiBody({
+    description:
+      'Création d’une notification, soit par utilisateur existant, soit en destination inline',
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(createNotificationDto.NotificationByUserDto) },
+        { $ref: getSchemaPath(createNotificationDto.NotificationInlineDto) },
+      ],
+      examples: {
+        byUser: {
+          summary: 'Notification vers un utilisateur existant',
+          value: {
+            recipientMode: 'BY_USER',
+            userExternalId: 'user_123',
+            channel: 'email',
+            subject: 'Bienvenue',
+            content: {
+              title: 'Bienvenue',
+              message: 'Votre compte a bien été créé',
+            },
+            sendAt: '2025-07-15T10:30:00.000Z',
+          },
+        },
+        inline: {
+          summary: 'Notification avec destinataire direct',
+          value: {
+            recipientMode: 'INLINE',
+            to: 'john.doe@email.com',
+            channel: 'email',
+            subject: 'Réinitialisation',
+            content: {
+              title: 'Mot de passe oublié',
+              message:
+                'Cliquez sur le lien pour réinitialiser votre mot de passe',
+            },
+          },
+        },
+      },
+    },
+  })
   async create(
     @Body() dto: createNotificationDto.CreateNotificationDto,
     @Req() req: requestWithTenant.RequestWithTenant,

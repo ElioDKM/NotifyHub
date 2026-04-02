@@ -32,7 +32,6 @@ export class EmailSender {
     notificationId,
     tryNumber,
   }: EmailSendInput): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const transporter: Transporter<SMTPTransport.SentMessageInfo> =
       nodemailer.createTransport<SMTPTransport.Options>({
         host: config.smtpHost,
