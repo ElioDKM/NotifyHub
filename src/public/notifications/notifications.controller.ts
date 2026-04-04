@@ -29,16 +29,16 @@ import { PublicApi } from 'src/common/decorators/api.decorator';
 import { RescheduleNotificationDto } from './dto/reschedule-notification.dto';
 
 @ApiTags('Notifications')
-@ApiExtraModels(
-  createNotificationDto.NotificationByUserDto,
-  createNotificationDto.NotificationInlineDto,
-)
 @ApiHeader({
   name: 'x-api-key',
   description: 'Tenant API key',
   required: true,
 })
 @PublicApi()
+@ApiExtraModels(
+  createNotificationDto.NotificationByUserDto,
+  createNotificationDto.NotificationInlineDto,
+)
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}

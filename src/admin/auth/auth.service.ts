@@ -34,7 +34,7 @@ export class AuthService {
 
     return {
       accessToken,
-      expiresIn: 7200,
+      expiresIn: 86400, // 24h
       tokenType: 'Bearer',
     };
   }

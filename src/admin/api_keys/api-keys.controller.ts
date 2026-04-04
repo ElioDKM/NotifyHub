@@ -8,7 +8,7 @@ import {
   NotFoundException,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ApiKeysService } from './api-keys.service';
 import { PrismaService } from 'prisma/prisma.service';
 import {

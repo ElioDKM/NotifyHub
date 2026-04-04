@@ -25,14 +25,14 @@ async function main() {
     const hashed = await bcrypt.hash(password, 12);
 
     await prisma.admin_user.upsert({
-      where: { email }, // email unique
+      where: { email },
       create: {
         email,
         password_hash: hashed,
-        role: admin_role.PLATFORM_ADMIN, // optionnel car default côté Prisma, mais safe
+        role: admin_role.PLATFORM_ADMIN,
       },
       update: {
-        password_hash: hashed, // si l'admin existe déjà, on met à jour le mdp
+        password_hash: hashed,
       },
     });
 
